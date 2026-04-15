@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rattana — ระบบจัดการกะงาน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+/* ===== RESET & ROOT ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy:    #0D1B3E;
+  --navy2:   #162447;
+  --navy3:   #1F3460;
+  --gold:    #C9A84C;
+  --gold2:   #E8C96D;
+  --gold3:   #F5DFA0;
+  --gold-dk: #9A7A2C;
+  --white:   #FFFFFF;
+  --g50:     #F8FAFC;
+  --g100:    #F1F5F9;
+  --g200:    #E2E8F0;
+  --g400:    #94A3B8;
+  --g600:    #475569;
+  --g800:    #1E293B;
+  --green:   #16A34A;
+  --red:     #DC2626;
+  --sw: 220px;
+  --r: 10px;
+}
+html, body { font-family: 'Sarabun', sans-serif; background: var(--g50); color: var(--g800); font-size: 15px; line-height: 1.6; height: 100%; }
+
+/* ===== LAYOUT ===== */
+#app { display: flex; min-height: 100vh; }
+.sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0; width: var(--sw);
+  background: var(--navy); display: flex; flex-direction: column; z-index: 100;
+  transition: transform .25s;
+}
+.main { margin-left: var(--sw); flex: 1; padding: 28px 32px; min-width: 0; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* ===== SIDEBAR ===== */
+.sb-logo { padding: 22px 20px 18px; border-bottom: 1px solid rgba(201,168,76,.2); }
+.sb-logo-title { font-family: 'Prompt', sans-serif; font-size: 20px; font-weight: 700; color: var(--gold); letter-spacing: 2px; }
+.sb-logo-sub { font-size: 11px; color: rgba(184,197,214,.6); margin-top: 2px; }
+.sb-badge { margin: 10px 20px; display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 20px; }
+.sb-badge.manager { background: rgba(201,168,76,.15); color: var(--gold); }
+.sb-badge.employee { background: rgba(255,255,255,.07); color: rgba(184,197,214,.8); }
+.sb-nav { flex: 1; padding: 4px 0; }
+.sb-item {
+  display: flex; align-items: center; gap: 12px; padding: 11px 20px;
+  font-size: 14px; color: rgba(184,197,214,.8); cursor: pointer;
+  border-left: 3px solid transparent; transition: all .15s; user-select: none;
+}
+.sb-item:hover { background: rgba(255,255,255,.05); color: var(--white); }
+.sb-item.active { background: rgba(201,168,76,.1); color: var(--gold); border-left-color: var(--gold); }
+.sb-item .ic { font-size: 16px; width: 20px; text-align: center; }
+.sb-user { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,.07); }
+.sb-user-inner { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,.06); border-radius: 10px; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--gold); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--navy); flex-shrink: 0; }
+.sb-user-name { font-size: 13px; font-weight: 500; color: var(--white); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-user-dept { font-size: 11px; color: rgba(184,197,214,.5); }
+.logout-btn { background: none; border: none; color: rgba(184,197,214,.4); font-size: 18px; cursor: pointer; padding: 4px; margin-left: auto; }
+.logout-btn:hover { color: var(--gold); }
+
+/* ===== MOBILE ===== */
+.hamburger { display: none; position: fixed; top: 14px; left: 14px; z-index: 200; background: var(--navy); border: none; color: var(--gold); width: 40px; height: 40px; border-radius: 8px; font-size: 18px; cursor: pointer; align-items: center; justify-content: center; }
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 99; }
+@media (max-width: 768px) {
+  .hamburger { display: flex; }
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .overlay.show { display: block; }
+  .main { margin-left: 0; padding: 20px 16px; padding-top: 64px; }
+  .grid-4 { grid-template-columns: repeat(2,1fr) !important; }
+  .grid-7 { grid-template-columns: repeat(2,1fr) !important; }
+}
+
+/* ===== COMMON COMPONENTS ===== */
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+.page-title { font-family: 'Prompt', sans-serif; font-size: 20px; font-weight: 600; color: var(--navy); }
+.page-sub { font-size: 13px; color: var(--g400); margin-top: 2px; }
+
+.card { background: var(--white); border-radius: var(--r); border: 0.5px solid var(--g200); }
+.card-header { padding: 13px 18px; border-bottom: 1px solid var(--g100); font-family: 'Prompt', sans-serif; font-weight: 600; font-size: 14px; color: var(--navy); display: flex; justify-content: space-between; align-items: center; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: 500; border: none; cursor: pointer; font-family: 'Sarabun', sans-serif; transition: all .15s; }
+.btn-primary { background: var(--gold); color: var(--navy); }
+.btn-primary:hover { background: var(--gold2); }
+.btn-navy { background: var(--navy); color: var(--gold); }
+.btn-navy:hover { background: var(--navy3); }
+.btn-outline { background: transparent; color: var(--g600); border: 1px solid var(--g200); }
+.btn-outline:hover { background: var(--g100); }
+.btn-danger { background: #FEF2F2; color: var(--red); border: 1px solid #FECACA; }
+.btn-danger:hover { background: #FEE2E2; }
+.btn-sm { padding: 5px 12px; font-size: 13px; }
+.btn-xs { padding: 3px 9px; font-size: 12px; }
+
+.pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+.pill-blue { background: #EFF6FF; color: #1D4ED8; }
+.pill-amber { background: #FFFBEB; color: #B45309; }
+.pill-green { background: #F0FDF4; color: #15803D; }
+.pill-gray { background: var(--g100); color: var(--g600); }
+.pill-gold { background: rgba(201,168,76,.12); color: var(--gold-dk); }
+.pill-red { background: #FEF2F2; color: var(--red); }
+
+.form-group { margin-bottom: 14px; }
+.form-label { display: block; font-size: 13px; font-weight: 500; color: var(--g600); margin-bottom: 5px; }
+.form-input { width: 100%; padding: 9px 12px; border: 1px solid var(--g200); border-radius: 8px; font-size: 14px; font-family: 'Sarabun', sans-serif; outline: none; transition: border-color .15s; background: var(--white); }
+.form-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,168,76,.15); }
+select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2394A3B8' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+
+table { width: 100%; border-collapse: collapse; }
+th { font-size: 12px; font-weight: 500; color: var(--g400); text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--g100); background: var(--g50); white-space: nowrap; }
+td { padding: 11px 16px; font-size: 14px; border-bottom: 0.5px solid var(--g100); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--g50); }
+
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(13,27,62,.55); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--white); border-radius: 14px; padding: 26px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+.modal-title { font-family: 'Prompt', sans-serif; font-size: 17px; font-weight: 600; color: var(--navy); margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--g100); }
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+
+.alert { border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+.alert-success { background: #F0FDF4; border: 1px solid #BBF7D0; color: #15803D; }
+.alert-error { background: #FEF2F2; border: 1px solid #FECACA; color: #DC2626; }
+
+.loading-text { display: flex; align-items: center; justify-content: center; height: 160px; color: var(--g400); font-size: 14px; }
+.empty-text { text-align: center; padding: 40px; color: var(--g400); font-size: 14px; }
+
+.grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-7 { display: grid; grid-template-columns: repeat(7,1fr); gap: 10px; }
+
+.stat-card { background: var(--white); border-radius: var(--r); border: 0.5px solid var(--g200); padding: 16px 18px; }
+.stat-card.dark { background: var(--navy); border-color: transparent; }
+.stat-label { font-size: 12px; color: var(--g400); margin-bottom: 5px; }
+.stat-card.dark .stat-label { color: rgba(184,197,214,.65); }
+.stat-val { font-size: 26px; font-weight: 700; font-family: 'Prompt', sans-serif; color: var(--navy); }
+.stat-card.dark .stat-val { color: var(--gold2); }
+.stat-sub { font-size: 12px; color: var(--g400); margin-top: 3px; }
+.stat-card.dark .stat-sub { color: var(--gold); opacity: .7; }
+
+.notif-item { display: flex; gap: 10px; padding: 12px 18px; border-bottom: 0.5px solid var(--g100); cursor: pointer; }
+.notif-item:last-child { border-bottom: none; }
+.notif-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+.notif-msg { font-size: 13px; }
+.notif-time { font-size: 11px; color: var(--g400); margin-top: 2px; }
+
+/* ===== LOGIN PAGE ===== */
+#login-page {
+  min-height: 100vh; background: var(--navy); display: flex; align-items: center; justify-content: center; padding: 20px;
+  background-image: radial-gradient(circle at 15% 85%, rgba(201,168,76,.08) 0%, transparent 50%), radial-gradient(circle at 85% 15%, rgba(31,52,96,.5) 0%, transparent 50%);
+}
+.login-box { width: 100%; max-width: 400px; }
+.login-logo { text-align: center; margin-bottom: 32px; }
+.login-logo-ring { width: 68px; height: 68px; border-radius: 50%; background: rgba(201,168,76,.12); border: 2px solid rgba(201,168,76,.35); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; font-size: 28px; }
+.login-title { font-family: 'Prompt', sans-serif; font-size: 26px; font-weight: 700; color: var(--gold); letter-spacing: 3px; }
+.login-sub { font-size: 13px; color: rgba(184,197,214,.6); margin-top: 4px; }
+.login-card { background: rgba(255,255,255,.04); border: 1px solid rgba(201,168,76,.2); border-radius: 16px; padding: 30px 26px; }
+.login-card .form-input { background: rgba(255,255,255,.06); border-color: rgba(201,168,76,.25); color: var(--white); }
+.login-card .form-input::placeholder { color: rgba(184,197,214,.4); }
+.login-card .form-label { color: rgba(184,197,214,.75); }
+.login-card .form-input:focus { border-color: var(--gold); }
+
+/* ===== WEEK DAY HEADERS ===== */
+.day-header { text-align: center; padding: 8px 4px; border-radius: 8px; margin-bottom: 8px; font-size: 12px; font-weight: 500; }
+.day-header.today { background: var(--navy); color: var(--gold); }
+.day-header.normal { background: var(--g100); color: var(--g600); }
+.shift-slot-box { border-radius: 8px; padding: 8px 6px; font-size: 11px; text-align: center; margin-bottom: 6px; border: 1.5px solid transparent; cursor: pointer; transition: all .15s; }
+.shift-slot-box.morning { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
+.shift-slot-box.evening { background: #FFF7ED; color: #C2410C; border-color: #FED7AA; }
+.shift-slot-box.selected { border-color: var(--gold) !important; box-shadow: 0 0 0 2px rgba(201,168,76,.25); }
+.shift-slot-box.dayoff { background: var(--g100); color: var(--g400); border-color: var(--g200); cursor: default; }
+.add-slot-btn { width: 100%; font-size: 11px; padding: 7px; background: none; border: 1.5px dashed var(--g200); border-radius: 8px; color: var(--g400); cursor: pointer; font-family: 'Sarabun', sans-serif; transition: all .15s; }
+.add-slot-btn:hover { border-color: var(--gold); color: var(--gold-dk); }
+
+/* ===== WEEK NAV ===== */
+.week-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.week-label { font-size: 14px; font-weight: 500; color: var(--navy); }
+
+/* ===== BOOKING CARD (employee) ===== */
+.booking-day { padding: 14px 18px; }
+.booking-day + .booking-day { border-top: 0.5px solid var(--g100); }
+.booking-slot { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 9px; border: 2px solid transparent; margin: 4px 4px 0 0; cursor: pointer; transition: all .15s; }
+.booking-slot.morning { background: #EFF6FF; border-color: #BFDBFE; color: #1D4ED8; }
+.booking-slot.evening { background: #FFF7ED; border-color: #FED7AA; color: #C2410C; }
+.booking-slot.booked { border-color: var(--gold) !important; background: rgba(201,168,76,.07) !important; }
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN PAGE ===== -->
+<div id="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-ring">⭐</div>
+      <div class="login-title">RATTANA</div>
+      <div class="login-sub">ระบบจัดการกะงาน</div>
+    </div>
+    <div class="login-card">
+      <h2 style="font-family:'Prompt',sans-serif;font-size:17px;font-weight:600;color:var(--white);margin-bottom:18px;">เข้าสู่ระบบ</h2>
+      <div id="login-err" class="alert alert-error" style="display:none"></div>
+      <div class="form-group">
+        <label class="form-label">ชื่อผู้ใช้</label>
+        <input class="form-input" id="inp-user" type="text" placeholder="กรอกชื่อผู้ใช้" />
+      </div>
+      <div class="form-group" style="margin-bottom:18px;">
+        <label class="form-label">รหัสผ่าน</label>
+        <input class="form-input" id="inp-pass" type="password" placeholder="กรอกรหัสผ่าน" />
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;font-size:15px;" onclick="doLogin()">เข้าสู่ระบบ</button>
+    </div>
+    <p style="text-align:center;margin-top:18px;font-size:12px;color:rgba(184,197,214,.35);">© Rattana Co., Ltd.</p>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app" style="display:none;">
+  <button class="hamburger" onclick="toggleSidebar()">☰</button>
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-title">RATTANA</div>
+      <div class="sb-logo-sub">ระบบจัดการกะงาน</div>
+    </div>
+    <div id="sb-badge-wrap" style="padding:10px 20px;"></div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-user">
+      <div class="sb-user-inner">
+        <div class="avatar" id="sb-avatar">R</div>
+        <div>
+          <div class="sb-user-name" id="sb-name">-</div>
+          <div class="sb-user-dept" id="sb-dept">-</div>
+        </div>
+        <button class="logout-btn" onclick="logout()" title="ออกจากระบบ">⇥</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page" id="page-dashboard">
+      <div class="page-header">
+        <div><div class="page-title" id="dash-title">แดชบอร์ด</div><div class="page-sub" id="dash-date"></div></div>
+        <div id="dash-notif-badge"></div>
+      </div>
+      <div class="grid-4" id="dash-stats"></div>
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-header">ตารางกะงานสัปดาห์นี้ <span id="dash-week-label" style="font-size:12px;color:var(--g400);font-weight:400;"></span></div>
+        <div style="padding:4px 16px 16px;"><div class="grid-7" id="dash-week"></div></div>
+      </div>
+      <div class="grid-2" id="dash-bottom"></div>
+    </div>
+
+    <!-- SELECT SHIFT (employee) -->
+    <div class="page" id="page-select-shift">
+      <div class="page-header">
+        <div><div class="page-title">เลือกกะงาน</div><div class="page-sub">เลือกกะที่ผู้จัดการเปิดไว้ให้คุณ</div></div>
+      </div>
+      <div id="sel-alert"></div>
+      <div id="sel-list"></div>
+    </div>
+
+    <!-- MY SHIFTS (employee) -->
+    <div class="page" id="page-my-shifts">
+      <div class="page-header">
+        <div><div class="page-title">กะของฉัน</div></div>
+      </div>
+      <div class="card"><div id="my-shifts-list"></div></div>
+    </div>
+
+    <!-- MANAGE SHIFTS (manager) -->
+    <div class="page" id="page-manage-shifts">
+      <div class="page-header">
+        <div class="page-title">จัดการกะงาน</div>
+        <button class="btn btn-primary" onclick="openAddShift()">+ สร้างกะใหม่</button>
+      </div>
+      <div id="ms-alert"></div>
+      <div class="week-nav">
+        <button class="btn btn-outline btn-sm" onclick="changeWeek(-1)">← สัปดาห์ก่อน</button>
+        <span class="week-label" id="ms-week-label"></span>
+        <button class="btn btn-outline btn-sm" onclick="changeWeek(1)">สัปดาห์หน้า →</button>
+        <button class="btn btn-outline btn-sm" onclick="weekOffset=0;renderManageShifts()">สัปดาห์นี้</button>
+      </div>
+      <div class="grid-7" id="ms-grid"></div>
+    </div>
+
+    <!-- MANAGE EMPLOYEES (manager) -->
+    <div class="page" id="page-manage-employees">
+      <div class="page-header">
+        <div class="page-title">จัดการพนักงาน</div>
+        <button class="btn btn-primary" onclick="openAddEmployee()">+ เพิ่มพนักงาน</button>
+      </div>
+      <div id="emp-alert"></div>
+      <div style="margin-bottom:14px;"><input class="form-input" style="max-width:300px;" placeholder="ค้นหาชื่อ, username..." oninput="renderEmployees(this.value)" /></div>
+      <div class="card"><div class="table-wrap" style="overflow-x:auto;"><table><thead><tr><th>#</th><th>ชื่อ-นามสกุล</th><th>Username</th><th>แผนก</th><th>สิทธิ์</th><th>จัดการ</th></tr></thead><tbody id="emp-tbody"></tbody></table></div></div>
+    </div>
+
+    <!-- DAYS OFF (manager) -->
+    <div class="page" id="page-days-off">
+      <div class="page-header"><div class="page-title">จัดการวันหยุด</div></div>
+      <div id="doff-alert"></div>
+      <div class="card" style="padding:18px;margin-bottom:16px;">
+        <div style="font-weight:600;color:var(--navy);margin-bottom:14px;font-size:14px;">เพิ่มวันหยุดพนักงาน</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+          <div class="form-group" style="flex:1 1 180px;margin-bottom:0;">
+            <label class="form-label">พนักงาน</label>
+            <select class="form-input" id="doff-emp-sel"><option value="">— เลือกพนักงาน —</option></select>
+          </div>
+          <div class="form-group" style="flex:1 1 150px;margin-bottom:0;">
+            <label class="form-label">วันที่หยุด</label>
+            <input class="form-input" type="date" id="doff-date-inp" />
+          </div>
+          <button class="btn btn-primary" onclick="addDayOff()" style="height:40px;">+ เพิ่ม</button>
+        </div>
+      </div>
+      <div class="card">
+        <div style="padding:10px 16px;border-bottom:1px solid var(--g100);">
+          <select class="form-input" style="max-width:220px;" id="doff-filter" onchange="renderDaysOff()"><option value="">พนักงานทุกคน</option></select>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>พนักงาน</th><th>แผนก</th><th>วันที่หยุด</th><th>วัน</th><th>จัดการ</th></tr></thead><tbody id="doff-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- NOTIFICATIONS -->
+    <div class="page" id="page-notifications">
+      <div class="page-header">
+        <div><div class="page-title">การแจ้งเตือน</div><div class="page-sub" id="notif-unread-label"></div></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline" onclick="markAllRead()">อ่านทั้งหมด</button>
+          <button class="btn btn-primary" id="notif-send-btn" style="display:none;" onclick="openSendNotif()">+ ส่งแจ้งเตือน</button>
+        </div>
+      </div>
+      <div id="notif-alert"></div>
+      <div id="notif-list"></div>
+    </div>
+
+    <!-- REPORT (manager) -->
+    <div class="page" id="page-report">
+      <div class="page-header"><div class="page-title">รายงานสรุป</div></div>
+      <div id="report-content"></div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ===== MODALS ===== -->
+<!-- Add/Edit Shift Modal -->
+<div class="modal-overlay" id="modal-shift">
+  <div class="modal">
+    <div class="modal-title" id="modal-shift-title">สร้างกะงานใหม่</div>
+    <div id="modal-shift-err"></div>
+    <div class="form-group"><label class="form-label">วันที่</label><input class="form-input" type="date" id="ms-date" /></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group"><label class="form-label">เวลาเริ่ม</label><input class="form-input" type="time" id="ms-start" value="08:00" /></div>
+      <div class="form-group"><label class="form-label">เวลาสิ้นสุด</label><input class="form-input" type="time" id="ms-end" value="17:00" /></div>
+    </div>
+    <div class="form-group"><label class="form-label">ชื่อกะ (ไม่บังคับ)</label><input class="form-input" type="text" id="ms-label" placeholder="เช่น กะเช้า" /></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-shift')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveShift()">สร้างกะ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Employee Modal -->
+<div class="modal-overlay" id="modal-emp">
+  <div class="modal">
+    <div class="modal-title" id="modal-emp-title">เพิ่มพนักงาน</div>
+    <div id="modal-emp-err"></div>
+    <input type="hidden" id="emp-edit-id" />
+    <div class="form-group"><label class="form-label">ชื่อ-นามสกุล</label><input class="form-input" type="text" id="emp-name" placeholder="เช่น สมชาย ใจดี" /></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group"><label class="form-label">Username</label><input class="form-input" type="text" id="emp-username" placeholder="เช่น somchai" /></div>
+      <div class="form-group"><label class="form-label" id="emp-pass-label">รหัสผ่าน</label><input class="form-input" type="password" id="emp-password" placeholder="รหัสผ่าน" /></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group"><label class="form-label">แผนก</label><input class="form-input" type="text" id="emp-dept" placeholder="เช่น หน้าร้าน" /></div>
+      <div class="form-group"><label class="form-label">สิทธิ์</label>
+        <select class="form-input" id="emp-role"><option value="employee">พนักงาน</option><option value="manager">ผู้จัดการ</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-emp')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveEmployee()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send Notification Modal -->
+<div class="modal-overlay" id="modal-notif">
+  <div class="modal">
+    <div class="modal-title">ส่งการแจ้งเตือน</div>
+    <div class="form-group"><label class="form-label">ส่งถึง</label>
+      <select class="form-input" id="notif-target"><option value="all">พนักงานทุกคน</option></select>
+    </div>
+    <div class="form-group"><label class="form-label">ข้อความ</label><textarea class="form-input" id="notif-msg" rows="3" placeholder="พิมพ์ข้อความ..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-notif')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="sendNotification()">ส่ง</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG — ใส่ URL ของ Google Apps Script ที่นี่
+// ============================================================
+const API_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+
+// ============================================================
+// STATE
+// ============================================================
+let currentUser = null;
+let state = { employees: [], slots: [], bookings: [], daysOff: [], notifications: [] };
+let weekOffset = 0;
+const DAY_TH = ['จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์','อาทิตย์'];
+
+// ============================================================
+// API CALL
+// ============================================================
+async function api(action, data = {}) {
+  const payload = { action, ...data };
+  if (currentUser) {
+    payload.userId = currentUser.id;
+    payload.role = currentUser.role;
+  }
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'text/plain' },
+  });
+  return res.json();
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+async function doLogin() {
+  const username = document.getElementById('inp-user').value.trim();
+  const password = document.getElementById('inp-pass').value;
+  const errEl = document.getElementById('login-err');
+  errEl.style.display = 'none';
+  if (!username || !password) { showErr(errEl, 'กรุณากรอกข้อมูลให้ครบ'); return; }
+  const r = await api('login', { username, password });
+  if (r.ok) {
+    currentUser = r.user;
+    sessionStorage.setItem('rattana_user', JSON.stringify(r.user));
+    startApp();
+  } else {
+    showErr(errEl, r.error || 'เข้าสู่ระบบไม่สำเร็จ');
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('rattana_user');
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('inp-user').value = '';
+  document.getElementById('inp-pass').value = '';
+}
+
+// ============================================================
+// APP INIT
+// ============================================================
+async function startApp() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  renderSidebar();
+  await loadAllData();
+  navigateTo('dashboard');
+}
+
+async function loadAllData() {
+  const isManager = currentUser.role === 'manager';
+  const promises = [
+    api('getShifts').then(r => { state.slots = r.slots || []; }),
+    api('getBookings').then(r => { state.bookings = r.bookings || []; }),
+    api('getDaysOff').then(r => { state.daysOff = r.daysOff || []; }),
+    api('getNotifications').then(r => { state.notifications = r.notifications || []; }),
+  ];
+  if (isManager) promises.push(api('getEmployees').then(r => { state.employees = r.employees || []; }));
+  await Promise.all(promises);
+}
+
+// ============================================================
+// SIDEBAR
+// ============================================================
+function renderSidebar() {
+  const isManager = currentUser.role === 'manager';
+  const initials = currentUser.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  document.getElementById('sb-avatar').textContent = initials;
+  document.getElementById('sb-name').textContent = currentUser.name;
+  document.getElementById('sb-dept').textContent = currentUser.department || '';
+
+  document.getElementById('sb-badge-wrap').innerHTML = `<span class="sb-badge ${currentUser.role}">${isManager ? '★ ผู้จัดการ' : '● พนักงาน'}</span>`;
+
+  const navItems = isManager ? [
+    { id: 'dashboard', icon: '▣', label: 'แดชบอร์ด' },
+    { id: 'manage-shifts', icon: '◫', label: 'จัดการกะงาน' },
+    { id: 'manage-employees', icon: '◈', label: 'จัดการพนักงาน' },
+    { id: 'days-off', icon: '◆', label: 'วันหยุด' },
+    { id: 'notifications', icon: '◉', label: 'การแจ้งเตือน' },
+    { id: 'report', icon: '☰', label: 'รายงาน' },
+  ] : [
+    { id: 'dashboard', icon: '▣', label: 'ภาพรวม' },
+    { id: 'select-shift', icon: '✦', label: 'เลือกกะงาน' },
+    { id: 'my-shifts', icon: '◫', label: 'กะของฉัน' },
+    { id: 'notifications', icon: '◉', label: 'การแจ้งเตือน' },
+  ];
+
+  document.getElementById('sb-nav').innerHTML = navItems.map(item =>
+    `<div class="sb-item" id="nav-${item.id}" onclick="navigateTo('${item.id}')"><span class="ic">${item.icon}</span>${item.label}</div>`
+  ).join('');
+}
+
+function navigateTo(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+  const page = document.getElementById('page-' + pageId);
+  if (page) page.classList.add('active');
+  const nav = document.getElementById('nav-' + pageId);
+  if (nav) nav.classList.add('active');
+  closeSidebar();
+
+  const renders = {
+    'dashboard': renderDashboard,
+    'select-shift': renderSelectShift,
+    'my-shifts': renderMyShifts,
+    'manage-shifts': renderManageShifts,
+    'manage-employees': renderEmployeesPage,
+    'days-off': renderDaysOffPage,
+    'notifications': renderNotifications,
+    'report': renderReport,
+  };
+  if (renders[pageId]) renders[pageId]();
+}
+
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard() {
+  const today = todayStr();
+  const isManager = currentUser.role === 'manager';
+  const unread = state.notifications.filter(n => !n.read).length;
+
+  document.getElementById('dash-title').textContent = isManager ? 'แดชบอร์ดภาพรวม' : `สวัสดี, ${currentUser.name}`;
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('th-TH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const badge = unread > 0 ? `<div style="display:flex;align-items:center;gap:8px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.3);border-radius:10px;padding:8px 14px;"><span class="notif-dot" style="background:var(--gold);"></span><span style="font-size:13px;color:var(--gold-dk);">มีการแจ้งเตือน ${unread} รายการ</span></div>` : '';
+  document.getElementById('dash-notif-badge').innerHTML = badge;
+
+  const weekDates = getWeekDates(0);
+  document.getElementById('dash-week-label').textContent = `${fmtDate(weekDates[0])} – ${fmtDate(weekDates[6])}`;
+
+  if (isManager) {
+    const emps = state.employees.filter(e => e.role !== 'manager');
+    const todaySlots = state.slots.filter(s => s.date === today);
+    const todayBooks = state.bookings.filter(b => todaySlots.some(s => s.id === b.shiftSlotId));
+    const bookedThisWeek = new Set(state.bookings.filter(b => weekDates.some(d => state.slots.find(s => s.id === b.shiftSlotId)?.date === d)).map(b => b.employeeId));
+    const notBooked = emps.filter(e => !bookedThisWeek.has(e.id));
+
+    document.getElementById('dash-stats').innerHTML = `
+      <div class="stat-card"><div class="stat-label">พนักงานทั้งหมด</div><div class="stat-val">${emps.length}</div><div class="stat-sub">คน</div></div>
+      <div class="stat-card"><div class="stat-label">เลือกกะสัปดาห์นี้</div><div class="stat-val">${bookedThisWeek.size}</div><div class="stat-sub">จาก ${emps.length} คน</div></div>
+      <div class="stat-card dark"><div class="stat-label">กะวันนี้</div><div class="stat-val">${todayBooks.length}</div><div class="stat-sub">คนลงกะวันนี้</div></div>
+      <div class="stat-card"><div class="stat-label">การแจ้งเตือนใหม่</div><div class="stat-val">${unread}</div><div class="stat-sub">ยังไม่อ่าน</div></div>`;
+
+    renderWeekGrid('dash-week', weekDates, false);
+
+    document.getElementById('dash-bottom').innerHTML = `
+      <div class="card">
+        <div class="card-header">ยังไม่เลือกกะสัปดาห์นี้</div>
+        ${notBooked.length === 0 ? '<div class="empty-text">พนักงานทุกคนเลือกกะแล้ว ✓</div>' :
+          notBooked.slice(0,6).map(e => `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:0.5px solid var(--g100);">
+            <div><div style="font-size:14px;font-weight:500;">${e.name}</div><div style="font-size:12px;color:var(--g400);">${e.department||''}</div></div>
+            <span class="pill pill-gray">รอเลือก</span></div>`).join('')}
+      </div>
+      <div class="card">
+        <div class="card-header">การแจ้งเตือนล่าสุด</div>
+        ${state.notifications.slice(0,5).map(n => `
+          <div class="notif-item"><span class="notif-dot" style="background:${n.read?'var(--g200)':'var(--gold)'};"></span>
+          <div><div class="notif-msg">${n.message}</div><div class="notif-time">${fmtDateTime(n.createdAt)}</div></div></div>`).join('') || '<div class="empty-text">ไม่มีการแจ้งเตือน</div>'}
+      </div>`;
+  } else {
+    const myBooks = state.bookings.filter(b => b.employeeId === currentUser.id);
+    const myWeekBooks = myBooks.filter(b => weekDates.some(d => state.slots.find(s => s.id === b.shiftSlotId)?.date === d));
+    const myDaysOff = state.daysOff.filter(d => d.employeeId === currentUser.id && weekDates.includes(d.date));
+
+    document.getElementById('dash-stats').innerHTML = `
+      <div class="stat-card"><div class="stat-label">กะสัปดาห์นี้</div><div class="stat-val">${myWeekBooks.length}</div><div class="stat-sub">วันที่เลือกแล้ว</div></div>
+      <div class="stat-card dark"><div class="stat-label">วันหยุดสัปดาห์นี้</div><div class="stat-val">${myDaysOff.length}</div><div class="stat-sub">วัน</div></div>
+      <div class="stat-card"><div class="stat-label">การแจ้งเตือนใหม่</div><div class="stat-val">${unread}</div><div class="stat-sub">ยังไม่อ่าน</div></div>`;
+
+    renderMyWeekGrid('dash-week', weekDates);
+
+    document.getElementById('dash-bottom').innerHTML = `
+      <div class="card" style="grid-column:1/-1;">
+        <div class="card-header">การแจ้งเตือนของฉัน</div>
+        ${state.notifications.slice(0,5).map(n => `
+          <div class="notif-item"><span class="notif-dot" style="background:${n.read?'var(--g200)':'var(--gold)'};"></span>
+          <div><div class="notif-msg">${n.message}</div><div class="notif-time">${fmtDateTime(n.createdAt)}</div></div></div>`).join('') || '<div class="empty-text">ไม่มีการแจ้งเตือน</div>'}
+      </div>`;
+  }
+}
+
+function renderWeekGrid(elId, weekDates, clickable) {
+  const el = document.getElementById(elId);
+  el.innerHTML = weekDates.map((date, i) => {
+    const daySlots = state.slots.filter(s => s.date === date);
+    const isToday = date === todayStr();
+    return `<div>
+      <div class="day-header ${isToday?'today':'normal'}">
+        <div>${DAY_TH[i]}</div>
+        <div style="font-weight:${isToday?700:400};font-size:11px;margin-top:1px;">${new Date(date+'T00:00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</div>
+      </div>
+      ${daySlots.length === 0 ? '<div style="text-align:center;font-size:11px;color:var(--g200);padding:8px 0;">—</div>' :
+        daySlots.map(s => {
+          const cnt = state.bookings.filter(b => b.shiftSlotId === s.id).length;
+          const cls = parseInt(s.startTime) < 12 ? 'morning' : 'evening';
+          return `<div class="shift-slot-box ${cls}">${s.startTime}-${s.endTime}<br><strong>${cnt} คน</strong></div>`;
+        }).join('')}
+    </div>`;
+  }).join('');
+}
+
+function renderMyWeekGrid(elId, weekDates) {
+  const el = document.getElementById(elId);
+  el.innerHTML = weekDates.map((date, i) => {
+    const isDayOff = state.daysOff.some(d => d.date === date && d.employeeId === currentUser.id);
+    const myBook = state.bookings.find(b => b.employeeId === currentUser.id && state.slots.find(s => s.id === b.shiftSlotId)?.date === date);
+    const slot = myBook ? state.slots.find(s => s.id === myBook.shiftSlotId) : null;
+    const isToday = date === todayStr();
+    return `<div>
+      <div class="day-header ${isToday?'today':'normal'}">
+        <div>${DAY_TH[i]}</div>
+        <div style="font-size:11px;margin-top:1px;">${new Date(date+'T00:00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</div>
+      </div>
+      ${isDayOff ? '<div class="shift-slot-box dayoff">วันหยุด</div>' :
+        slot ? `<div class="shift-slot-box ${parseInt(slot.startTime)<12?'morning':'evening'} selected">${slot.startTime}-${slot.endTime}</div>` :
+        '<div style="text-align:center;font-size:11px;color:var(--g200);padding:8px 0;">—</div>'}
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// SELECT SHIFT (employee)
+// ============================================================
+function renderSelectShift() {
+  const el = document.getElementById('sel-list');
+  const today = new Date();
+  const dates = Array.from({length:14}, (_,i) => { const d = new Date(today); d.setDate(d.getDate()+i); return d.toISOString().slice(0,10); });
+
+  el.innerHTML = dates.map(date => {
+    const daySlots = state.slots.filter(s => s.date === date);
+    const isDayOff = state.daysOff.some(d => d.date === date && d.employeeId === currentUser.id);
+    const myBook = state.bookings.find(b => b.employeeId === currentUser.id && state.slots.find(s => s.id === b.shiftSlotId)?.date === date);
+    const isToday = date === todayStr();
+
+    return `<div class="card" style="margin-bottom:10px;">
+      <div class="booking-day">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:${daySlots.length>0?'10px':'0'};">
+          <div style="font-weight:600;color:var(--navy);font-size:15px;">
+            ${new Date(date+'T00:00:00').toLocaleDateString('th-TH',{weekday:'long',day:'numeric',month:'long'})}
+            ${isToday?'<span style="margin-left:8px;font-size:11px;background:var(--gold3);color:var(--gold-dk);padding:2px 8px;border-radius:20px;">วันนี้</span>':''}
+          </div>
+          ${isDayOff ? '<span class="pill pill-gray">วันหยุด</span>' : myBook ? '<span class="pill pill-green">เลือกแล้ว</span>' : ''}
+        </div>
+        ${isDayOff ? '' : daySlots.length === 0 ?
+          '<div style="font-size:13px;color:var(--g400);">ไม่มีกะที่เปิดให้เลือกในวันนี้</div>' :
+          `<div style="display:flex;flex-wrap:wrap;gap:8px;">${daySlots.map(slot => {
+            const isBooked = myBook?.shiftSlotId === slot.id;
+            const cls = parseInt(slot.startTime) < 12 ? 'morning' : 'evening';
+            return `<div class="booking-slot ${cls} ${isBooked?'booked':''}">
+              <div>
+                <div style="font-weight:600;font-size:15px;">${slot.startTime} – ${slot.endTime}</div>
+                ${slot.label ? `<div style="font-size:12px;opacity:.7;">${slot.label}</div>` : ''}
+              </div>
+              ${isBooked ?
+                `<button class="btn btn-danger btn-xs" onclick="cancelBooking('${myBook.id}')">ยกเลิก</button>` :
+                myBook ? `<span style="font-size:12px;color:var(--g400);">เลือกกะอื่นไปแล้ว</span>` :
+                `<button class="btn btn-navy btn-xs" onclick="bookShift('${slot.id}')">เลือก</button>`}
+            </div>`;
+          }).join('')}</div>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function bookShift(slotId) {
+  const r = await api('addBooking', { shiftSlotId: slotId });
+  const el = document.getElementById('sel-alert');
+  if (r.ok) {
+    showAlert(el, 'success', 'เลือกกะสำเร็จ!');
+    await loadAllData();
+    renderSelectShift();
+  } else { showAlert(el, 'error', r.error); }
+}
+
+async function cancelBooking(bookingId) {
+  const r = await api('deleteBooking', { id: bookingId });
+  const el = document.getElementById('sel-alert');
+  if (r.ok) {
+    showAlert(el, 'success', 'ยกเลิกกะสำเร็จ');
+    await loadAllData();
+    renderSelectShift();
+  } else { showAlert(el, 'error', r.error); }
+}
+
+// ============================================================
+// MY SHIFTS (employee)
+// ============================================================
+function renderMyShifts() {
+  const myBooks = state.bookings.filter(b => b.employeeId === currentUser.id)
+    .sort((a,b) => {
+      const da = state.slots.find(s=>s.id===a.shiftSlotId)?.date||'';
+      const db = state.slots.find(s=>s.id===b.shiftSlotId)?.date||'';
+      return da.localeCompare(db);
+    });
+  document.getElementById('my-shifts-list').innerHTML = myBooks.length === 0 ? '<div class="empty-text">ยังไม่ได้เลือกกะงาน</div>' :
+    myBooks.map(b => {
+      const slot = state.slots.find(s => s.id === b.shiftSlotId);
+      if (!slot) return '';
+      const cls = parseInt(slot.startTime) < 12 ? 'morning' : 'evening';
+      const d = new Date(slot.date+'T00:00:00');
+      return `<div class="booking-day" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-weight:500;font-size:14px;">${d.toLocaleDateString('th-TH',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
+          <div class="booking-slot ${cls}" style="margin-top:6px;display:inline-flex;">
+            <span style="font-weight:600;">${slot.startTime} – ${slot.endTime}</span>
+            ${slot.label ? `<span style="font-size:12px;opacity:.7;margin-left:4px;">(${slot.label})</span>` : ''}
+          </div>
+        </div>
+        <button class="btn btn-danger btn-xs" onclick="cancelBooking('${b.id}');setTimeout(()=>{loadAllData().then(renderMyShifts)},300)">ยกเลิก</button>
+      </div>`;
+    }).join('');
+}
+
+// ============================================================
+// MANAGE SHIFTS (manager)
+// ============================================================
+function renderManageShifts() {
+  const weekDates = getWeekDates(weekOffset);
+  document.getElementById('ms-week-label').textContent = `${fmtDate(weekDates[0])} – ${fmtDate(weekDates[6])}`;
+
+  document.getElementById('ms-grid').innerHTML = weekDates.map((date, i) => {
+    const daySlots = state.slots.filter(s => s.date === date);
+    const isToday = date === todayStr();
+    return `<div>
+      <div class="day-header ${isToday?'today':'normal'}">
+        <div>${DAY_TH[i]}</div>
+        <div style="font-size:11px;margin-top:1px;">${new Date(date+'T00:00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</div>
+      </div>
+      ${daySlots.map(slot => {
+        const cnt = state.bookings.filter(b => b.shiftSlotId === slot.id).length;
+        const names = state.bookings.filter(b => b.shiftSlotId === slot.id).slice(0,3)
+          .map(b => state.employees.find(e=>e.id===b.employeeId)?.name || '').filter(Boolean);
+        const cls = parseInt(slot.startTime) < 12 ? 'morning' : 'evening';
+        return `<div class="card" style="margin-bottom:8px;padding:9px;border-top:3px solid ${cls==='morning'?'#3B82F6':'#F97316'};">
+          <div style="font-weight:600;font-size:12px;color:${cls==='morning'?'#1D4ED8':'#C2410C'};">${slot.startTime}–${slot.endTime}</div>
+          ${slot.label?`<div style="font-size:10px;color:var(--g400);">${slot.label}</div>`:''}
+          <div style="font-size:11px;color:var(--g600);margin:4px 0;">${cnt} คนเลือก</div>
+          ${names.map(n=>`<div style="font-size:10px;color:var(--g600);">• ${n}</div>`).join('')}
+          ${cnt>3?`<div style="font-size:10px;color:var(--g400);">+${cnt-3} คน</div>`:''}
+          <button class="btn btn-danger" style="margin-top:7px;width:100%;justify-content:center;font-size:11px;padding:4px;" onclick="deleteShift('${slot.id}')">ลบกะ</button>
+        </div>`;
+      }).join('')}
+      <button class="add-slot-btn" onclick="openAddShift('${date}')">+ เพิ่มกะ</button>
+    </div>`;
+  }).join('');
+}
+
+function changeWeek(dir) { weekOffset += dir; renderManageShifts(); }
+
+function openAddShift(date = '') {
+  document.getElementById('ms-date').value = date;
+  document.getElementById('ms-start').value = '08:00';
+  document.getElementById('ms-end').value = '17:00';
+  document.getElementById('ms-label').value = '';
+  document.getElementById('modal-shift-err').innerHTML = '';
+  openModal('modal-shift');
+}
+
+async function saveShift() {
+  const date = document.getElementById('ms-date').value;
+  const startTime = document.getElementById('ms-start').value;
+  const endTime = document.getElementById('ms-end').value;
+  const label = document.getElementById('ms-label').value;
+  const errEl = document.getElementById('modal-shift-err');
+  if (!date || !startTime || !endTime) { showErr(errEl, 'กรุณากรอกข้อมูลให้ครบ'); return; }
+  const r = await api('addShift', { date, startTime, endTime, label });
+  if (r.ok) {
+    closeModal('modal-shift');
+    showAlert(document.getElementById('ms-alert'), 'success', 'สร้างกะสำเร็จ!');
+    await loadAllData();
+    renderManageShifts();
+  } else { showErr(errEl, r.error); }
+}
+
+async function deleteShift(id) {
+  if (!confirm('ต้องการลบกะนี้?')) return;
+  const r = await api('deleteShift', { id });
+  if (r.ok) {
+    showAlert(document.getElementById('ms-alert'), 'success', 'ลบกะสำเร็จ');
+    await loadAllData();
+    renderManageShifts();
+  }
+}
+
+// ============================================================
+// MANAGE EMPLOYEES (manager)
+// ============================================================
+function renderEmployeesPage(search = '') {
+  const filtered = state.employees.filter(e =>
+    !search || e.name?.includes(search) || e.username?.includes(search) || e.department?.includes(search)
+  );
+  document.getElementById('emp-tbody').innerHTML = filtered.length === 0 ?
+    `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--g400);">ไม่พบข้อมูล</td></tr>` :
+    filtered.map((emp, i) => `<tr>
+      <td style="color:var(--g400);">${i+1}</td>
+      <td><div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:30px;height:30px;border-radius:50%;background:${emp.role==='manager'?'rgba(201,168,76,.15)':'var(--g100)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:${emp.role==='manager'?'var(--gold-dk)':'var(--g600)'};">${emp.name?.slice(0,1)||'?'}</div>
+        <span style="font-weight:500;">${emp.name}</span></div></td>
+      <td style="color:var(--g600);">${emp.username}</td>
+      <td style="color:var(--g600);">${emp.department||'—'}</td>
+      <td><span class="pill ${emp.role==='manager'?'pill-gold':'pill-blue'}">${emp.role==='manager'?'ผู้จัดการ':'พนักงาน'}</span></td>
+      <td><div style="display:flex;gap:6px;">
+        <button class="btn btn-outline btn-xs" onclick="openEditEmployee('${emp.id}')">แก้ไข</button>
+        ${emp.id !== currentUser.id ? `<button class="btn btn-danger btn-xs" onclick="deleteEmployee('${emp.id}','${emp.name}')">ลบ</button>` : ''}
+      </div></td>
+    </tr>`).join('');
+}
+
+function renderEmployees(search) { renderEmployeesPage(search); }
+
+function openAddEmployee() {
+  document.getElementById('emp-edit-id').value = '';
+  document.getElementById('emp-name').value = '';
+  document.getElementById('emp-username').value = '';
+  document.getElementById('emp-password').value = '';
+  document.getElementById('emp-dept').value = '';
+  document.getElementById('emp-role').value = 'employee';
+  document.getElementById('emp-username').disabled = false;
+  document.getElementById('emp-pass-label').textContent = 'รหัสผ่าน';
+  document.getElementById('modal-emp-title').textContent = 'เพิ่มพนักงานใหม่';
+  document.getElementById('modal-emp-err').innerHTML = '';
+  openModal('modal-emp');
+}
+
+function openEditEmployee(id) {
+  const emp = state.employees.find(e => e.id === id);
+  if (!emp) return;
+  document.getElementById('emp-edit-id').value = id;
+  document.getElementById('emp-name').value = emp.name;
+  document.getElementById('emp-username').value = emp.username;
+  document.getElementById('emp-password').value = '';
+  document.getElementById('emp-dept').value = emp.department || '';
+  document.getElementById('emp-role').value = emp.role;
+  document.getElementById('emp-username').disabled = true;
+  document.getElementById('emp-pass-label').textContent = 'รหัสผ่าน (เว้นว่างถ้าไม่เปลี่ยน)';
+  document.getElementById('modal-emp-title').textContent = 'แก้ไขพนักงาน';
+  document.getElementById('modal-emp-err').innerHTML = '';
+  openModal('modal-emp');
+}
+
+async function saveEmployee() {
+  const editId = document.getElementById('emp-edit-id').value;
+  const name = document.getElementById('emp-name').value.trim();
+  const username = document.getElementById('emp-username').value.trim();
+  const password = document.getElementById('emp-password').value;
+  const department = document.getElementById('emp-dept').value.trim();
+  const role = document.getElementById('emp-role').value;
+  const errEl = document.getElementById('modal-emp-err');
+
+  if (!name || (!editId && (!username || !password))) { showErr(errEl, 'กรุณากรอกข้อมูลให้ครบ'); return; }
+
+  const r = editId ?
+    await api('updateEmployee', { id: editId, name, role, department, password }) :
+    await api('addEmployee', { username, password, name, role, department });
+
+  if (r.ok) {
+    closeModal('modal-emp');
+    showAlert(document.getElementById('emp-alert'), 'success', editId ? 'แก้ไขสำเร็จ' : 'เพิ่มพนักงานสำเร็จ');
+    await loadAllData();
+    renderEmployeesPage();
+  } else { showErr(errEl, r.error); }
+}
+
+async function deleteEmployee(id, name) {
+  if (!confirm(`ต้องการลบ ${name} ออกจากระบบ?`)) return;
+  const r = await api('deleteEmployee', { id });
+  if (r.ok) {
+    showAlert(document.getElementById('emp-alert'), 'success', 'ลบพนักงานสำเร็จ');
+    await loadAllData();
+    renderEmployeesPage();
+  }
+}
+
+// ============================================================
+// DAYS OFF (manager)
+// ============================================================
+function renderDaysOffPage() {
+  const empSel = document.getElementById('doff-emp-sel');
+  const filterSel = document.getElementById('doff-filter');
+  const emps = state.employees.filter(e => e.role !== 'manager');
+
+  [empSel, filterSel].forEach(sel => {
+    const cur = sel.value;
+    sel.innerHTML = `<option value="">${sel === empSel ? '— เลือกพนักงาน —' : 'พนักงานทุกคน'}</option>` +
+      emps.map(e => `<option value="${e.id}" ${cur===e.id?'selected':''}>${e.name}</option>`).join('');
+  });
+
+  renderDaysOff();
+}
+
+function renderDaysOff() {
+  const filter = document.getElementById('doff-filter')?.value || '';
+  const filtered = state.daysOff.filter(d => !filter || d.employeeId === filter).sort((a,b) => a.date.localeCompare(b.date));
+  document.getElementById('doff-tbody').innerHTML = filtered.length === 0 ?
+    `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--g400);">ยังไม่มีวันหยุดที่กำหนด</td></tr>` :
+    filtered.map(d => {
+      const emp = state.employees.find(e => e.id === d.employeeId);
+      const dateObj = new Date(d.date+'T00:00:00');
+      return `<tr>
+        <td style="font-weight:500;">${emp?.name||'—'}</td>
+        <td style="color:var(--g600);">${emp?.department||'—'}</td>
+        <td>${dateObj.toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'})}</td>
+        <td><span class="pill pill-gray">${dateObj.toLocaleDateString('th-TH',{weekday:'long'})}</span></td>
+        <td><button class="btn btn-danger btn-xs" onclick="removeDayOff('${d.id}')">ลบ</button></td>
+      </tr>`;
+    }).join('');
+}
+
+async function addDayOff() {
+  const employeeId = document.getElementById('doff-emp-sel').value;
+  const date = document.getElementById('doff-date-inp').value;
+  const errEl = document.getElementById('doff-alert');
+  if (!employeeId || !date) { showAlert(errEl, 'error', 'กรุณาเลือกพนักงานและวันที่'); return; }
+  const r = await api('addDayOff', { employeeId, date });
+  if (r.ok) {
+    showAlert(errEl, 'success', 'เพิ่มวันหยุดสำเร็จ');
+    document.getElementById('doff-date-inp').value = '';
+    await loadAllData();
+    renderDaysOffPage();
+  } else { showAlert(errEl, 'error', r.error); }
+}
+
+async function removeDayOff(id) {
+  const r = await api('deleteDayOff', { id });
+  if (r.ok) {
+    showAlert(document.getElementById('doff-alert'), 'success', 'ลบวันหยุดสำเร็จ');
+    await loadAllData();
+    renderDaysOffPage();
+  }
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+function renderNotifications() {
+  const unread = state.notifications.filter(n => !n.read).length;
+  document.getElementById('notif-unread-label').textContent = unread > 0 ? `ยังไม่ได้อ่าน ${unread} รายการ` : '';
+  document.getElementById('notif-send-btn').style.display = currentUser.role === 'manager' ? 'inline-flex' : 'none';
+
+  if (currentUser.role === 'manager') {
+    const emps = state.employees.filter(e => e.role !== 'manager');
+    document.getElementById('notif-target').innerHTML = `<option value="all">พนักงานทุกคน</option>` +
+      emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+  }
+
+  document.getElementById('notif-list').innerHTML = state.notifications.length === 0 ?
+    '<div class="empty-text" style="margin-top:40px;">ไม่มีการแจ้งเตือน</div>' :
+    state.notifications.map(n => `
+      <div class="card" style="margin-bottom:8px;padding:14px 18px;display:flex;gap:10px;border-left:4px solid ${n.read?'var(--g100)':'var(--gold)'};" onclick="markRead('${n.id}')">
+        <span class="notif-dot" style="background:${n.read?'var(--g200)':'var(--gold)'};margin-top:6px;"></span>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:${n.read?400:500};">${n.message}</div>
+          <div style="font-size:12px;color:var(--g400);margin-top:3px;">${fmtDateTime(n.createdAt)}</div>
+        </div>
+        ${!n.read ? '<span class="pill pill-gold" style="flex-shrink:0;">ใหม่</span>' : ''}
+      </div>`).join('');
+}
+
+async function markRead(id) {
+  const n = state.notifications.find(x => x.id === id);
+  if (!n || n.read) return;
+  await api('markNotifRead', { id });
+  n.read = true;
+  renderNotifications();
+}
+
+async function markAllRead() {
+  const unread = state.notifications.filter(n => !n.read);
+  await Promise.all(unread.map(n => api('markNotifRead', { id: n.id })));
+  state.notifications.forEach(n => n.read = true);
+  renderNotifications();
+}
+
+function openSendNotif() { document.getElementById('notif-msg').value = ''; openModal('modal-notif'); }
+
+async function sendNotification() {
+  const targetEmployeeId = document.getElementById('notif-target').value;
+  const message = document.getElementById('notif-msg').value.trim();
+  if (!message) return;
+  const r = await api('addNotification', { targetEmployeeId, message });
+  if (r.ok) {
+    closeModal('modal-notif');
+    showAlert(document.getElementById('notif-alert'), 'success', 'ส่งการแจ้งเตือนสำเร็จ');
+    await loadAllData();
+    renderNotifications();
+  }
+}
+
+// ============================================================
+// REPORT (manager)
+// ============================================================
+function renderReport() {
+  const today = todayStr();
+  const weekDates = getWeekDates(0);
+  const emps = state.employees.filter(e => e.role !== 'manager');
+
+  const rows = emps.map(emp => {
+    const weekSlots = weekDates.map(date => {
+      const isDayOff = state.daysOff.some(d => d.date === date && d.employeeId === emp.id);
+      if (isDayOff) return `<td style="text-align:center;"><span class="pill pill-gray" style="font-size:10px;">หยุด</span></td>`;
+      const book = state.bookings.find(b => b.employeeId === emp.id && state.slots.find(s => s.id === b.shiftSlotId)?.date === date);
+      const slot = book ? state.slots.find(s => s.id === book.shiftSlotId) : null;
+      return `<td style="text-align:center;">${slot ? `<span class="pill ${parseInt(slot.startTime)<12?'pill-blue':'pill-amber'}" style="font-size:10px;">${slot.startTime}</span>` : '<span style="color:var(--g200);">—</span>'}</td>`;
+    }).join('');
+    return `<tr><td style="font-weight:500;">${emp.name}</td><td style="color:var(--g400);">${emp.department||''}</td>${weekSlots}</tr>`;
+  }).join('');
+
+  document.getElementById('report-content').innerHTML = `
+    <div class="card">
+      <div class="card-header">รายงานกะงานสัปดาห์นี้
+        <span style="font-size:12px;color:var(--g400);font-weight:400;">${fmtDate(weekDates[0])} – ${fmtDate(weekDates[6])}</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>ชื่อพนักงาน</th><th>แผนก</th>${DAY_TH.map((d,i)=>`<th style="text-align:center;">${d}<br><span style="font-size:10px;font-weight:400;">${new Date(weekDates[i]+'T00:00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</span></th>`).join('')}</tr></thead>
+          <tbody>${rows || '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--g400);">ไม่มีข้อมูล</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+function getWeekDates(offset) {
+  const d = new Date();
+  const day = d.getDay();
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - (day === 0 ? 6 : day - 1) + offset * 7);
+  return Array.from({length: 7}, (_, i) => {
+    const x = new Date(mon);
+    x.setDate(mon.getDate() + i);
+    return x.toISOString().slice(0, 10);
+  });
+}
+
+function fmtDate(dateStr) { return new Date(dateStr+'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }); }
+function fmtDateTime(iso) { return new Date(iso).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+
+function showAlert(el, type, msg) {
+  if (!el) return;
+  el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(() => { el.innerHTML = ''; }, 4000);
+}
+function showErr(el, msg) { el.innerHTML = `<div class="alert alert-error">${msg}</div>`; }
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('show'); });
+});
+
+document.getElementById('inp-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ===== CHECK SESSION =====
+window.addEventListener('load', () => {
+  const saved = sessionStorage.getItem('rattana_user');
+  if (saved) { currentUser = JSON.parse(saved); startApp(); }
+});
+</script>
+</body>
+</html>
