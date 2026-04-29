@@ -17,7 +17,7 @@
     //  🔧 วาง URL ของ Google Apps Script ตรงนี้
     //  ตัวอย่าง: "https://script.google.com/macros/s/AKfyc.../exec"
     // ══════════════════════════════════════════════════
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyFJsF0Wazh6EZ6X8mXOSRMCZADI4conL-9FCJ1Mh_Mxu52qSW2fFe-A7DDR71yWxdH/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzF6gwY3WKs5GAnc8QawqYNkWkJEY5miRrXjvx9_Xs2ftrWcPcLvwAMyMafTmC30v_D/exec";
     const SECRET_TOKEN = "rattanashiftmgt";
 
     // ── API helpers ──────────────────────────────────
@@ -662,36 +662,11 @@ function MonthBar({ period, setPeriod, shifts, emps, setShifts, showToast }) {
   const activeEmps = emps.filter(e=>e.status==="active");
 
   const navigate = (newYear, newMonth) => {
-    const newPeriod = { year:newYear, month:newMonth, half };
-    // Check if target period has data
-    const hasCur = periodHasData(shifts, activeEmps, newYear, newMonth, half);
-    if (!hasCur) {
-      // Auto-copy from previous period
-      const src = prevPeriod(newYear, newMonth, half);
-      const hasSrc = periodHasData(shifts, activeEmps, src.year, src.month, src.half);
-      if (hasSrc) {
-        const copied = copyByWeekday(shifts, activeEmps, src, {year:newYear, month:newMonth, half});
-        setShifts(copied);
-        showToast(`คัดลอกตารางจาก ${THAI_MONTHS[src.month-1]} → ${THAI_MONTHS[newMonth-1]} โดยวันในสัปดาห์ ✓`);
-      }
-    }
-    setPeriod(newPeriod);
+    setPeriod({ year:newYear, month:newMonth, half });
   };
 
   const setHalf = (h) => {
-    const newPeriod = { year, month, half:h };
-    const activeEmps2 = emps.filter(e=>e.status==="active");
-    const hasCur = periodHasData(shifts, activeEmps2, year, month, h);
-    if (!hasCur) {
-      const src = prevPeriod(year, month, h);
-      const hasSrc = periodHasData(shifts, activeEmps2, src.year, src.month, src.half);
-      if (hasSrc) {
-        const copied = copyByWeekday(shifts, activeEmps2, src, {year, month, half:h});
-        setShifts(copied);
-        showToast(`คัดลอกตารางโดยวันในสัปดาห์ ✓`);
-      }
-    }
-    setPeriod(newPeriod);
+    setPeriod({ year, month, half:h });
   };
 
   const isCurrent = (y,m) => y===now.getFullYear() && m===now.getMonth()+1;
